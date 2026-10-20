@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SoulHub - Inventory with soul</title>
+    
+    <!-- Font Preloading for Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #0d0d0d;
+            --gold-primary: #d1b27c;
+            --gold-gradient: linear-gradient(135deg, #e2cba7 0%, #c19b52 100%);
+            --text-white: #ffffff;
+            --text-muted: #a0a0a0;
+            --font-heading: 'Cinzel', serif;
+            --font-body: 'Lato', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000;
+            background-image: radial-gradient(circle at 20% 50%, rgba(60, 40, 20, 0.4) 0%, transparent 40%),
+                              radial-gradient(circle at 80% 50%, rgba(60, 40, 20, 0.4) 0%, transparent 40%);
+            color: var(--text-white);
+            font-family: var(--font-body);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100dvh; /* Fix for mobile address bar */
+            overflow: hidden;
+        }
+
+        /* Phone Frame Mockup (Desktop) */
+        .device-frame {
+            width: 390px;
+            height: 844px;
+            background-color: var(--bg-color);
+            border-radius: 50px;
+            position: relative;
+            box-shadow: 0 0 0 10px #222, 0 20px 50px rgba(0,0,0,0.8);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Dynamic Island */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 10;
+        }
+
+        .dynamic-island {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 35px;
+            background-color: #000;
+            border-radius: 20px;
+            z-index: 20;
+        }
+
+        .status-icons { display: flex; gap: 5px; align-items: center; }
+        .status-icons span { font-size: 12px; }
+
+        /* Main App Container */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 30px;
+            flex: 1;
+            text-align: center;
+        }
+
+        /* Logo & Subtle Glow */
+        .logo-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+            margin-top: 10px;
+        }
+
+        /* Adds a soft gold glow behind the shoe */
+        .logo-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: var(--gold-primary);
+            filter: blur(40px);
+            opacity: 0.15;
+            border-radius: 50%;
+            z-index: -1;
+        }
+
+        .logo { width: 100px; height: auto; }
+        .logo path {
+            fill: none;
+            stroke: var(--text-white);
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Typography */
+        h1 {
+            font-family: var(--font-heading);
+            font-size: 52px;
+            font-weight: 400;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            font-family: var(--font-heading);
+            font-size: 16px;
+            color: var(--gold-primary);
+            letter-spacing: 1.5px;
+        }
+
+        /* Dividers */
+        .divider {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            margin: 35px 0;
+        }
+
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .divider svg {
+            margin: 0 15px;
+            width: 16px;
+            height: 16px;
+            fill: var(--gold-primary);
+        }
+
+        /* Buttons (Now styled Anchor Tags) */
+        .button-group {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border-radius: 8px;
+            font-family: var(--font-heading);
+            font-size: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+            text-decoration: none; /* Removes underline from links */
+            display: block; /* Makes it behave like a block element */
+            text-align: center;
+        }
+
+        /* Keyboard Navigation Focus State */
+        .btn:focus-visible {
+            box-shadow: 0 0 0 3px var(--bg-color), 0 0 0 6px var(--gold-primary);
+        }
+
+        .btn-primary {
+            background: var(--gold-gradient);
+            color: #111;
+            border: none;
+            box-shadow: 0 4px 15px rgba(193, 155, 82, 0.2);
+        }
+
+        .btn-primary:hover, .btn-primary:focus-visible {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(1px) scale(0.98); /* Click effect */
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-white);
+            border: 1px solid var(--gold-primary);
+        }
+
+        .btn-secondary:hover, .btn-secondary:focus-visible {
+            background: rgba(209, 178, 124, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary:active {
+            transform: translateY(1px) scale(0.98);
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 20px;
+        }
+
+        .footer p {
+            font-size: 13px;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+
+        .footer .divider { margin: 0; width: 60%; }
+        .footer .divider svg { width: 10px; height: 10px; }
+
+        /* Mobile View */
+        @media (max-width: 500px) {
+            .device-frame {
+                width: 100%;
+                height: 100dvh;
+                border-radius: 0;
+                box-shadow: none;
+                border: none;
+            }
+
+            .dynamic-island, .status-bar {
+                display: none; 
+            }
+            
+            .app-container {
+                padding-top: max(60px, env(safe-area-inset-top));
+                padding-bottom: max(40px, env(safe-area-inset-bottom));
+            }
+
+            h1 { font-size: 46px; }
+        }
+
+        /* Page Load Animation */
+        .app-container {
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeIn 0.8s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="device-frame">
+        <div class="dynamic-island"></div>
+        <div class="status-bar">
+            <span>9:41</span>
+            <div class="status-icons">
+                <span>📶</span>
+                <span>📡</span>
+                <span>🔋</span>
+            </div>
+        </div>
+
+        <div class="app-container">
+            
+            <div class="logo-wrapper">
+                <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="SoulHub High Heel Logo" role="img">
+                    <path d="M38,15 C45,15 50,25 50,35 C50,50 60,65 75,70 C85,73 90,80 90,85 C90,90 85,90 80,88 C65,80 45,80 35,90 C30,95 25,95 25,90 C25,85 30,75 35,60 C40,45 35,30 30,25 C28,22 30,15 38,15 Z" />
+                    <path d="M50,35 C60,30 70,35 70,45" />
+                </svg>
+            </div>
+
+            <h1>SoulHub</h1>
+            <p class="tagline">Inventory with soul</p>
+
+            <div class="divider" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" />
+                </svg>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="button-group">
+                <a href="login.html" class="btn btn-primary">Login</a>
+                <a href="register.html" class="btn btn-secondary">Create Account</a>
+            </div>
+
+            <div class="footer">
+                <p>High-end shoe boutique inventory</p>
+                <div class="divider" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" />
+                    </svg>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+  </html>
