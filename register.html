@@ -62,9 +62,8 @@
             box-sizing: border-box;
             outline: none;
             transition: border 0.3s;
-            appearance: none; /* Removes default OS styling for select */
+            appearance: none;
         }
-        /* Add custom dropdown arrow */
         select {
             background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23d1b27c%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
             background-repeat: no-repeat;
@@ -89,10 +88,10 @@
             border: 1px solid var(--gold-primary);
             cursor: pointer;
             margin-top: 10px;
-            transition: background 0.3s, transform 0.1s;
+            transition: background 0.3s, transform 0.1s, opacity 0.3s;
         }
-        .btn:hover { background: rgba(209, 178, 124, 0.1); }
-        .btn:active { transform: scale(0.98); }
+        .btn:hover:not(:disabled) { background: rgba(209, 178, 124, 0.1); }
+        .btn:active:not(:disabled) { transform: scale(0.98); }
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -110,22 +109,24 @@
         /* Status Messages */
         .message {
             display: none;
-            padding: 10px;
+            padding: 12px;
             border-radius: 5px;
             margin-bottom: 20px;
             font-size: 14px;
+            text-align: left;
+            line-height: 1.4;
         }
         .message.error {
             display: block;
             background: rgba(255, 77, 77, 0.1);
             color: var(--error);
-            border: 1px solid var(--error);
+            border: 1px solid rgba(255, 77, 77, 0.3);
         }
         .message.success {
             display: block;
             background: rgba(77, 255, 136, 0.1);
             color: var(--success);
-            border: 1px solid var(--success);
+            border: 1px solid rgba(77, 255, 136, 0.3);
         }
     </style>
 </head>
@@ -165,70 +166,124 @@
     </div>
 
     <script>
-        // 1. Initialize Supabase
-        const supabaseUrl = 'https://ragcmdottawgtqspwfdw.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhZ2NtZG90YXdndHFzcHdmZHciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc5MjQ2MTMwNSwiZXhwIjoyMTA4MDM3MzA1fQ.F3IlMYB-inlls9pEFaCFtPCscamvgN-lJBBEyF6hxFc';
-        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-
-        // 2. Handle Form Submission
-        document.getElementById('register-form').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent page reload
-
-            // Get DOM elements
+        // Wrap everything in DOMContentLoaded to ensure HTML elements exist before JS runs
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const form = document.getElementById('register-form');
             const submitBtn = document.getElementById('submit-btn');
             const messageDiv = document.getElementById('status-message');
-            
-            // Get form values
-            const fullName = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const role = document.getElementById('role').value;
 
-            // UI Updates: Loading state
-            submitBtn.disabled = true;
-            submitBtn.innerText = "Creating Account...";
-            messageDiv.className = 'message'; // Reset message
-            messageDiv.style.display = 'none';
+            // Helper function to display messages
+            const showMessage = (text, type) => {
+                messageDiv.innerText = text;
+                messageDiv.className = `message ${type}`;
+            };
 
-            try {
-                // 3. Call Supabase Auth to sign up the user
-                // We pass the full_name and role inside the "options.data" object.
-                // This stores them securely in Supabase's "user_metadata".
-                const { data, error } = await supabaseClient.auth.signUp({
-                    email: email,
-                    password: password,
-                    options: {
-                        data: {
-                            full_name: fullName,
-                            role: role
-                        }
-                    }
-                });
-
-                if (error) throw error;
-
-                // Success!
-                messageDiv.innerText = "Account created successfully! Please check your email to verify.";
-                messageDiv.className = 'message success';
-                document.getElementById('register-form').reset();
-                submitBtn.innerText = "Account Created";
-
-                // Optional: Redirect to login after 3 seconds
-                setTimeout(() => {
-                    window.location.href = 'login.html';
-                }, 3000);
-
-            } catch (error) {
-                // Error handling
-                console.error("Signup Error:", error.message);
-                messageDiv.innerText = error.message;
-                messageDiv.className = 'message error';
-                
-                // Reset button
+            // Helper function to reset the button state
+            const resetButton = () => {
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Create Account";
+            };
+
+            // 1. Check if Supabase CDN loaded
+            if (typeof supabase === 'undefined') {
+                showMessage("System Error: Failed to load database library. Please check your internet connection and refresh.", "error");
+                submitBtn.disabled = true;
+                console.error("Supabase CDN failed to load.");
+                return;
             }
+
+            // 2. Initialize Supabase
+            const supabaseUrl = 'https://ragcmdottawgtqspwfdw.supabase.co';
+            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhZ2NtZG90YXdndHFzcHdmZHciLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc5MjQ2MTMwNSwiZXhwIjoyMTA4MDM3MzA1fQ.F3IlMYB-inlls9pEFaCFtPCscamvgN-lJBBEyF6hxFc';
+            
+            let supabaseClient;
+            try {
+                supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+            } catch (err) {
+                showMessage("System Error: Failed to initialize database connection.", "error");
+                submitBtn.disabled = true;
+                console.error("Supabase init error:", err);
+                return;
+            }
+
+            // 3. Handle Form Submission
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault(); 
+                
+                // Clear previous messages
+                messageDiv.className = 'message';
+                messageDiv.style.display = 'none';
+
+                // Get form values
+                const fullName = document.getElementById('name').value.trim();
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const role = document.getElementById('role').value;
+
+                // Basic Frontend Validation
+                if (!fullName || !email || !password || !role) {
+                    showMessage("Please fill out all fields.", "error");
+                    return;
+                }
+                if (password.length < 6) {
+                    showMessage("Password must be at least 6 characters long.", "error");
+                    return;
+                }
+
+                // Set Loading State
+                submitBtn.disabled = true;
+                submitBtn.innerText = "Creating Account...";
+
+                try {
+                    // Call Supabase Auth
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email: email,
+                        password: password,
+                        options: {
+                            data: {
+                                full_name: fullName,
+                                role: role
+                            }
+                        }
+                    });
+
+                    // Handle Supabase-specific errors
+                    if (error) throw error;
+
+                    // Success!
+                    showMessage("Account created successfully! Redirecting to login...", "success");
+                    submitBtn.innerText = "Account Created";
+                    form.reset();
+
+                    // Redirect after 3 seconds
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 3000);
+
+                } catch (error) {
+                    console.error("Registration Error:", error);
+                    
+                    // Map error messages to user-friendly text
+                    let errorMsg = error.message || "An unexpected error occurred.";
+                    
+                    if (errorMsg.includes("User already registered") || errorMsg.includes("already been registered")) {
+                        errorMsg = "This email is already registered. Try logging in instead.";
+                    } else if (errorMsg.includes("Password should be")) {
+                        errorMsg = "Password is too weak. Please use a stronger password.";
+                    } else if (errorMsg.includes("Invalid email")) {
+                        errorMsg = "Please enter a valid email address.";
+                    } else if (errorMsg.includes("Database error")) {
+                        errorMsg = "Database error. Ensure you have disabled 'Confirm email' in Supabase settings if testing.";
+                    }
+
+                    showMessage(errorMsg, "error");
+                    
+                    // Reset button ONLY on error, so they can try again
+                    resetButton(); 
+                }
+            });
         });
     </script>
 </body>
-  </html>
+    </html>
