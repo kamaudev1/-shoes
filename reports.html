@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reports - SoulHub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><h2>SoulHub</h2></div>
+    <div class="user-profile">
+      <div class="avatar" id="user-initial">S</div>
+      <div class="user-info">
+        <h4 id="user-name">Loading...</h4>
+        <span class="role-badge" id="user-role">...</span>
+      </div>
+    </div>
+    <nav class="nav-menu">
+      <a href="dashboard.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        Overview
+      </a>
+      <a href="inventory.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+        Inventory
+      </a>
+      <a href="sales.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+        Sales (POS)
+      </a>
+      <a href="reports.html" class="nav-item active">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        Reports
+      </a>
+      <!-- Owner only links -->
+      <a href="staff.html" class="nav-item owner-only" style="display:none;">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+        Staff
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" id="logout-btn">Log Out</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" id="menu-toggle">☰</button>
+      <h1>Financial Reports</h1>
+    </header>
+
+    <!-- Content Container -->
+    <div id="reports-container">
+      <!-- Security guard will show/hide this based on role -->
+      
+      <div class="filter-bar">
+        <h2 style="font-family: 'Cinzel', serif;">Sales Performance</h2>
+        <select id="date-filter" class="date-filter">
+          <option value="today" selected>Today's Sales</option>
+          <option value="7days">Last 7 Days</option>
+          <option value="30days">This Month</option>
+          <option value="all">All Time</option>
+        </select>
+      </div>
+
+      <!-- Metrics Summary -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-title">Total Revenue</div>
+          <div class="metric-value" id="metric-revenue">KSh 0.00</div>
+          <div class="metric-desc" id="metric-transactions">0 Transactions</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Total Cost (Goods)</div>
+          <div class="metric-value" id="metric-cost">KSh 0.00</div>
+          <div class="metric-desc">Cost of shoes sold</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Net Profit</div>
+          <div class="metric-value" id="metric-profit" style="color: var(--success);">KSh 0.00</div>
+          <div class="metric-desc" id="metric-margin">0% margin</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-title">Items Sold</div>
+          <div class="metric-value" id="metric-items">0</div>
+          <div class="metric-desc">Pairs sold</div>
+        </div>
+      </div>
+
+      <!-- Sales Table -->
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date & Time</th>
+              <th>Receipt #</th>
+              <th>Items</th>
+              <th>Revenue</th>
+              <th>Profit</th>
+            </tr>
+          </thead>
+          <tbody id="sales-table-body">
+            <tr><td colspan="5" style="text-align: center; color: var(--muted);">Loading report data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- LOAD SHARED APP.JS -->
+  <script src="app.js"></script>
+  
+  <!-- PAGE SPECIFIC LOGIC -->
+  <script>
+    let allSales = [];
+
+    window.addEventListener('load', async () => {
+        // 1. Role-Based Security Check
+        // We wait for app.js to initialize the user role
+        setTimeout(async () => {
+            if (window.currentUserRole !== 'owner' && window.currentUserRole !== 'manager') {
+                document.getElementById('reports-container').innerHTML = `
+                  <div class="unauthorized-panel">
+                    <h2>Access Denied</h2>
+                    <p>Only Owners and Managers are allowed to view financial reports.</p>
+                  </div>
+                `;
+                return;
+            }
+
+            // 2. Fetch Data if authorized
+            await loadSalesData();
+            
+            // 3. Setup Filter Listener
+            document.getElementById('date-filter').addEventListener('change', () => {
+                renderReport();
+            });
+        }, 500); // Small delay to ensure app.js auth is complete
+    });
+
+    async function loadSalesData() {
+        // Fetch all sales and join with the user who sold it (optional, but good for staff tracking)
+        const { data, error } = await supabaseClient
+            .from('sales')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error("Error fetching sales:", error);
+            document.getElementById('sales-table-body').innerHTML = `<tr><td colspan="5" style="color: var(--error);">Error loading data: ${error.message}</td></tr>`;
+            return;
+        }
+
+        allSales = data;
+        renderReport(); // Render with default 'today' filter
+    }
+
+    function renderReport() {
+        const filter = document.getElementById('date-filter').value;
+        
+        // 1. Filter Data by Date
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        
+        const filteredSales = allSales.filter(sale => {
+            const saleDate = new Date(sale.created_at).getTime();
+            
+            if (filter === 'today') return saleDate >= todayStart;
+            if (filter === '7days') return saleDate >= (todayStart - (7 * 24 * 60 * 60 * 1000));
+            if (filter === '30days') return saleDate >= (todayStart - (30 * 24 * 60 * 60 * 1000));
+            return true; // 'all'
+        });
+
+        // 2. Calculate Totals
+        let totalRevenue = 0;
+        let totalCost = 0;
+        let totalItems = 0;
+
+        filteredSales.forEach(sale => {
+            totalRevenue += Number(sale.total_amount);
+            
+            // Calculate cost and items sold from the JSONB array
+            if (sale.items && Array.isArray(sale.items)) {
+                sale.items.forEach(item => {
+                    const cost = Number(item.cost_price) || 0;
+                    const qty = Number(item.quantity) || 1;
+                    totalCost += (cost * qty);
+                    totalItems += qty;
+                });
+            }
+        });
+
+        const totalProfit = totalRevenue - totalCost;
+        const margin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0;
+
+        // 3. Update Metric Cards
+        const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
+        
+        document.getElementById('metric-revenue').textContent = formatKsh(totalRevenue);
+        document.getElementById('metric-cost').textContent = formatKsh(totalCost);
+        document.getElementById('metric-profit').textContent = formatKsh(totalProfit);
+        document.getElementById('metric-items').textContent = totalItems;
+        document.getElementById('metric-transactions').textContent = `${filteredSales.length} Transactions`;
+        document.getElementById('metric-margin').textContent = `${margin}% margin`;
+
+        // Change profit color based on positive/negative
+        document.getElementById('metric-profit').style.color = totalProfit >= 0 ? 'var(--success)' : 'var(--error)';
+
+        // 4. Render Table
+        const tbody = document.getElementById('sales-table-body');
+        tbody.innerHTML = '';
+
+        if (filteredSales.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--muted);">No sales found for this period.</td></tr>`;
+            return;
+        }
+
+        filteredSales.forEach(sale => {
+            // Calculate profit for this specific sale
+            let saleCost = 0;
+            let itemsSummary = [];
+            
+            if (sale.items && Array.isArray(sale.items)) {
+                sale.items.forEach(item => {
+                    saleCost += ((Number(item.cost_price) || 0) * (Number(item.quantity) || 1));
+                    itemsSummary.push(`${item.quantity}x ${item.name} (Sz ${item.size})`);
+                });
+            }
+            
+            const saleProfit = sale.total_amount - saleCost;
+            const profitClass = saleProfit >= 0 ? 'text-success' : 'text-error';
+            
+            // Format date
+            const dateObj = new Date(sale.created_at);
+            const dateStr = dateObj.toLocaleDateString('en-KE', { month: 'short', day: 'numeric' });
+            const timeStr = dateObj.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
+
+            tbody.innerHTML += `
+                <tr>
+                  <td style="white-space: nowrap;">${dateStr}, ${timeStr}</td>
+                  <td><span class="badge">${sale.receipt_number}</span></td>
+                  <td style="font-size: 12px; color: var(--muted); max-width: 250px;">${itemsSummary.join('<br>')}</td>
+                  <td style="font-family: 'Cinzel', serif;">${formatKsh(sale.total_amount)}</td>
+                  <td class="${profitClass}" style="font-weight: 600;">${formatKsh(saleProfit)}</td>
+                </tr>
+            `;
+        });
+    }
+  </script>
+</body>
+</html>
