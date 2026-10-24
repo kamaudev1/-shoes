@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>Create Account - SoulHub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d0d0d;
+      --panel: #141414;
+      --gold: #d1b27c;
+      --gold-light: #e2cba7;
+      --text: #f7f4ee;
+      --muted: #aaa6a0;
+      --error: #ff7777;
+      --success: #70e6a0;
+      --border: rgba(209,178,124,.25);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      background: radial-gradient(ellipse at top, #211c14 0%, var(--bg) 52%);
+      color: var(--text);
+      font-family: "Lato", sans-serif;
+    }
+    .container {
+      width: 100%;
+      max-width: 430px;
+      padding: 34px 28px;
+      background: rgba(20,20,20,.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.38);
+    }
+    .brand {
+      margin: 0 0 8px;
+      color: var(--gold);
+      font: 500 13px "Lato", sans-serif;
+      letter-spacing: .28em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font: 500 clamp(27px, 7vw, 35px) "Cinzel", serif;
+      line-height: 1.25;
+    }
+    .intro {
+      margin: 0 0 25px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .message {
+      display: none;
+      margin: 0 0 18px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+    .message.error {
+      display: block;
+      color: var(--error);
+      background: rgba(255,119,119,.08);
+      border: 1px solid rgba(255,119,119,.3);
+    }
+    .message.success {
+      display: block;
+      color: var(--success);
+      background: rgba(112,230,160,.08);
+      border: 1px solid rgba(112,230,160,.3);
+    }
+    .field { margin-bottom: 17px; text-align: left; }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #d4d0c9;
+      font-size: 13px;
+    }
+    input, select {
+      display: block;
+      width: 100%;
+      min-height: 49px;
+      padding: 13px 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      outline: none;
+      background: #1b1b1b;
+      color: var(--text);
+      font: 16px "Lato", sans-serif;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input::placeholder { color: #77736d; }
+    input:focus, select:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(209,178,124,.12);
+    }
+    select:invalid { color: #99938a; }
+    select option { background: #1b1b1b; color: var(--text); }
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 86px; }
+    .toggle-password {
+      position: absolute;
+      top: 50%;
+      right: 9px;
+      transform: translateY(-50%);
+      padding: 8px;
+      border: 0;
+      background: transparent;
+      color: var(--gold);
+      font: 12px "Lato", sans-serif;
+      cursor: pointer;
+    }
+    .hint {
+      display: block;
+      margin-top: 7px;
+      color: #88837b;
+      font-size: 12px;
+    }
+    .btn {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 5px;
+      padding: 14px 18px;
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      background: linear-gradient(135deg, #e2cba7, #c19b52);
+      color: #17130d;
+      font: 600 15px "Cinzel", serif;
+      letter-spacing: .04em;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:hover:not(:disabled) { opacity: .92; }
+    .btn:active:not(:disabled) { transform: scale(.99); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .footer {
+      margin: 23px 0 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .home-link { display: inline-block; margin-top: 9px; color: var(--muted); }
+    @media (max-width: 380px) {
+      .container { padding: 28px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <p class="brand">SoulHub</p>
+    <h1>Create your account</h1>
+    <p class="intro">Set up your account to get started with SoulHub.</p>
+
+    <div id="status-message" class="message" role="status" aria-live="polite"></div>
+
+    <form id="register-form">
+      <div class="field">
+        <label for="name">Full name</label>
+        <input id="name" name="name" type="text" autocomplete="name"
+               placeholder="Enter your full name" maxlength="100" required>
+      </div>
+
+      <div class="field">
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" autocomplete="email"
+               placeholder="you@example.com" maxlength="254" required>
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="password-wrap">
+          <input id="password" name="password" type="password"
+                 autocomplete="new-password" placeholder="Create a password"
+                 minlength="6" required>
+          <button class="toggle-password" id="toggle-password" type="button"
+                  aria-label="Show password" aria-pressed="false">Show</button>
+        </div>
+        <small class="hint">Use at least 6 characters, or more if your project requires it.</small>
+      </div>
+
+      <div class="field">
+        <label for="role">Account role</label>
+        <select id="role" name="role" required>
+          <option value="" selected disabled>Select your role</option>
+          <option value="owner">Shop Owner</option>
+          <option value="manager">Manager</option>
+          <option value="sales">Sales Associate</option>
+        </select>
+        <small class="hint">Role selection here is profile information, not proof of permission. Restrict privileged roles securely in your database.</small>
+      </div>
+
+      <button id="submit-btn" class="btn" type="submit">Create Account</button>
+    </form>
+
+    <p class="footer">
+      Already have an account? <a href="login.html">Log in</a><br>
+      <a class="home-link" href="index.html">← Back to Home</a>
+    </p>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const form = document.getElementById("register-form");
+      const submitBtn = document.getElementById("submit-btn");
+      const messageBox = document.getElementById("status-message");
+      const passwordInput = document.getElementById("password");
+      const togglePassword = document.getElementById("toggle-password");
+
+      // Use the URL and publishable key from the SAME Supabase project.
+      const SUPABASE_URL = "https://ragcmdottawgtqspwfdw.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_XKOVxJYfqPtOdhUNLbtyaQ_eE3JF4Vx";
+
+      function showMessage(message, type) {
+        messageBox.textContent = message;
+        messageBox.className = "message " + type;
+        messageBox.style.display = "block";
+      }
+
+      function clearMessage() {
+        messageBox.textContent = "";
+        messageBox.className = "message";
+        messageBox.style.display = "none";
+      }
+
+      function setLoading(loading) {
+        submitBtn.disabled = loading;
+        submitBtn.textContent = loading ? "Creating account…" : "Create Account";
+      }
+
+      function friendlyError(error) {
+        const message = String(error?.message || "");
+        const lower = message.toLowerCase();
+
+        if (lower.includes("invalid api key") || lower.includes("apikey")) {
+          return "Supabase rejected the API key. Check that the publishable key is copied completely and belongs to the project URL in this file.";
+        }
+        if (lower.includes("user already registered") || lower.includes("already been registered")) {
+          return "This email may already be registered. Try logging in or use password recovery.";
+        }
+        if (lower.includes("password") && (lower.includes("weak") || lower.includes("should be") || lower.includes("at least"))) {
+          return "Supabase rejected this password. Use a longer password that meets your project's password policy.";
+        }
+        if (lower.includes("invalid email")) {
+          return "Enter a valid email address.";
+        }
+        if (lower.includes("rate limit") || lower.includes("too many requests")) {
+          return "Too many registration attempts. Wait a while before trying again.";
+        }
+        if (lower.includes("fetch") || lower.includes("network") || lower.includes("failed to fetch")) {
+          return "Could not reach Supabase. Check your internet connection and reload the page.";
+        }
+        return message || "Registration failed. Please try again.";
+      }
+
+      togglePassword.addEventListener("click", () => {
+        const show = passwordInput.type === "password";
+        passwordInput.type = show ? "text" : "password";
+        togglePassword.textContent = show ? "Hide" : "Show";
+        togglePassword.setAttribute("aria-label", show ? "Hide password" : "Show password");
+        togglePassword.setAttribute("aria-pressed", String(show));
+      });
+
+      if (!window.supabase || typeof window.supabase.createClient !== "function") {
+        showMessage("Supabase library did not load. Check your internet connection, then reload this page.", "error");
+        submitBtn.disabled = true;
+        return;
+      }
+
+      let supabaseClient;
+      try {
+        supabaseClient = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_PUBLISHABLE_KEY
+        );
+      } catch (error) {
+        console.error("Supabase initialization failed:", error);
+        showMessage("Could not initialize Supabase. Check the project URL and publishable key in this file.", "error");
+        submitBtn.disabled = true;
+        return;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        clearMessage();
+
+        const fullName = document.getElementById("name").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const password = passwordInput.value;
+        const role = document.getElementById("role").value;
+
+        if (!fullName || !email || !password || !role) {
+          showMessage("Please complete every field.", "error");
+          return;
+        }
+        if (password.length < 6) {
+          showMessage("Password must contain at least 6 characters.", "error");
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const { data, error } = await supabaseClient.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: fullName,
+                role: role
+              },
+              emailRedirectTo: window.location.origin + "/login.html"
+            }
+          });
+
+          if (error) throw error;
+
+          if (data?.user && data.user.identities && data.user.identities.length === 0) {
+            showMessage("An account may already exist for this email. Try logging in or use password recovery.", "error");
+            return;
+          }
+
+          form.reset();
+          passwordInput.type = "password";
+          togglePassword.textContent = "Show";
+          togglePassword.setAttribute("aria-label", "Show password");
+          togglePassword.setAttribute("aria-pressed", "false");
+
+          if (data?.session) {
+            showMessage("Account created and signed in successfully. You can continue to the login page.", "success");
+          } else {
+            showMessage("Registration request accepted. Check your email for a confirmation link if email confirmation is enabled, then log in.", "success");
+          }
+
+          submitBtn.textContent = "Account Created";
+          // No automatic redirect, so the confirmation message remains visible.
+        } catch (error) {
+          console.error("SoulHub registration error:", error);
+          showMessage(friendlyError(error), "error");
+        } finally {
+          if (submitBtn.textContent !== "Account Created") {
+            setLoading(false);
+          }
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
