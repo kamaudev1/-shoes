@@ -65,7 +65,7 @@
     <header class="top-header">
       <button class="menu-toggle" id="menu-toggle">☰</button>
       <div>
-        <h1 id="greeting-text" style="font-size: 24px;">Welcome back</h1>
+        <h1 id="greeting-text" style="font-size: 24px; font-family: 'Cinzel', serif;">Welcome back</h1>
         <p id="date-text" style="color: var(--muted); font-size: 14px; margin-top: 5px;"></p>
       </div>
     </header>
@@ -124,7 +124,7 @@
           <a href="inventory.html">View Inventory</a>
         </div>
         <div class="gallery-grid" id="gallery-grid">
-          <p style="color: var(--muted); grid-column: span 2; text-align: center;">Loading gallery...</p>
+          <p style="color: var(--muted); grid-column: span 2; text-align: center; padding: 20px;">Loading gallery...</p>
         </div>
       </div>
 
@@ -143,96 +143,129 @@
     </div>
   </div>
 
+  <!-- LOAD SHARED APP.JS -->
   <script src="app.js"></script>
   
+  <!-- PAGE SPECIFIC LOGIC -->
   <script>
     let latestProducts = [];
+    let shopConfig = null;
 
+    // Helper function to format currency
+    const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val || 0);
+
+    // Wait for the auth check in app.js to finish
     window.addEventListener('appReady', async () => {
-    setGreeting();
-    await loadDashboardData();
-});
+        await fetchShopConfig();
+        setGreeting();
+        await loadDashboardData();
+    });
 
+    // 1. Fetch Settings (for the low stock threshold)
+    async function fetchShopConfig() {
+        try {
+            const { data } = await supabaseClient
+                .from('shop_settings')
+                .select('*')
+                .eq('id', 1)
+                .single();
+            if (data) shopConfig = data;
+        } catch (err) {
+            console.warn("Using default settings as shop_config could not be loaded.");
+        }
+    }
+
+    // 2. Set Dynamic Greeting & Date
     function setGreeting() {
         const hours = new Date().getHours();
         let greeting = "Good evening";
         if (hours < 12) greeting = "Good morning";
         else if (hours < 18) greeting = "Good afternoon";
         
-        // window.currentUserName is set in app.js
         document.getElementById('greeting-text').textContent = `${greeting}, ${window.currentUserName || 'User'}`;
         
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('date-text').textContent = `Here is what's happening at SoulHub on ${new Date().toLocaleDateString('en-KE', options)}`;
     }
 
+    // 3. Fetch and Calculate all Live Data
     async function loadDashboardData() {
-        const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
-
-        // 1. Fetch Products (for inventory value, low stock, and gallery)
-        const { data: products } = await supabaseClient.from('products').select('*').order('created_at', { ascending: false });
-        
-        if (products) {
-            // Calculate Inventory Value & Low Stock
-            let totalValue = 0;
-            let totalPairs = 0;
-            let lowStockCount = 0;
-            const threshold = shopConfig?.low_stock_threshold || 2; // Fallback to 2
-
-            products.forEach(p => {
-                const sizes = [38, 39, 40, 41, 42];
-                sizes.forEach(size => {
-                    const qty = p[`size_${size}`] || 0;
-                    totalPairs += qty;
-                    totalValue += (p.price * qty);
-                    if (qty > 0 && qty <= threshold) lowStockCount++;
-                });
-            });
-
-            document.getElementById('metric-inventory-value').textContent = formatKsh(totalValue);
-            document.getElementById('metric-pairs').textContent = `${totalPairs} Pairs in stock`;
-            document.getElementById('metric-low-stock').textContent = lowStockCount;
-
-            // Populate Gallery (Latest 4 items with images)
-            latestProducts = products.filter(p => p.image_url).slice(0, 4);
-            renderGallery();
-        }
-
-        // 2. Fetch Today's Sales & Recent Activity
-        const todayStart = new Date();
-        todayStart.setHours(0,0,0,0);
-
-        const { data: sales } = await supabaseClient
-            .from('sales')
-            .select('*')
-            .gte('created_at', todayStart.toISOString())
-            .order('created_at', { ascending: false });
-
-        if (sales) {
-            const todayRevenue = sales.reduce((sum, s) => sum + Number(s.total_amount), 0);
-            document.getElementById('metric-revenue').textContent = formatKsh(todayRevenue);
-            document.getElementById('metric-transactions').textContent = `${sales.length} Transactions`;
+        try {
+            // --- A. Fetch Products (Inventory Value, Low Stock, Gallery) ---
+            const { data: products, error: prodError } = await supabaseClient
+                .from('products')
+                .select('*')
+                .order('created_at', { ascending: false });
             
-            renderRecentSales(sales.slice(0, 5)); // Only show last 5
-        }
+            if (!prodError && products) {
+                let totalValue = 0;
+                let totalPairs = 0;
+                let lowStockCount = 0;
+                const threshold = shopConfig?.low_stock_threshold || 2; 
 
-        // 3. Fetch Customer Count
-        const { count } = await supabaseClient.from('customers').select('*', { count: 'exact', head: true });
-        document.getElementById('metric-customers').textContent = count || 0;
+                products.forEach(p => {
+                    const sizes = [38, 39, 40, 41, 42];
+                    sizes.forEach(size => {
+                        const qty = Number(p[`size_${size}`]) || 0;
+                        totalPairs += qty;
+                        totalValue += (Number(p.price) || 0) * qty;
+                        // Count if it's low stock, but not completely out of stock
+                        if (qty > 0 && qty <= threshold) lowStockCount++;
+                    });
+                });
+
+                document.getElementById('metric-inventory-value').textContent = formatKsh(totalValue);
+                document.getElementById('metric-pairs').textContent = `${totalPairs} Pairs in stock`;
+                document.getElementById('metric-low-stock').textContent = lowStockCount;
+
+                // Populate Gallery (Take first 4 items that have images)
+                latestProducts = products.filter(p => p.image_url).slice(0, 4);
+                renderGallery();
+            }
+
+            // --- B. Fetch Today's Sales ---
+            const todayStart = new Date();
+            todayStart.setHours(0,0,0,0);
+
+            const { data: sales, error: salesError } = await supabaseClient
+                .from('sales')
+                .select('*')
+                .gte('created_at', todayStart.toISOString())
+                .order('created_at', { ascending: false });
+
+            if (!salesError && sales) {
+                const todayRevenue = sales.reduce((sum, s) => sum + (Number(s.total_amount) || 0), 0);
+                document.getElementById('metric-revenue').textContent = formatKsh(todayRevenue);
+                document.getElementById('metric-transactions').textContent = `${sales.length} Transactions`;
+                renderRecentSales(sales.slice(0, 5)); // Show only the last 5
+            }
+
+            // --- C. Fetch Customer Count ---
+            const { count, error: custError } = await supabaseClient
+                .from('customers')
+                .select('*', { count: 'exact', head: true });
+                
+            if (!custError) {
+                document.getElementById('metric-customers').textContent = count || 0;
+            }
+
+        } catch (err) {
+            console.error("Dashboard data loading failed:", err);
+        }
     }
 
+    // 4. Render Recent Sales Table
     function renderRecentSales(recentSales) {
         const tbody = document.getElementById('recent-sales-body');
         tbody.innerHTML = '';
 
         if (recentSales.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--muted);">No sales yet today.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--muted); padding: 20px;">No sales yet today.</td></tr>`;
             return;
         }
 
         recentSales.forEach(sale => {
             const timeStr = new Date(sale.created_at).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
-            const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
             
             tbody.innerHTML += `
                 <tr>
@@ -244,17 +277,17 @@
         });
     }
 
+    // 5. Render Latest Arrivals Gallery
     function renderGallery() {
         const grid = document.getElementById('gallery-grid');
         grid.innerHTML = '';
 
         if (latestProducts.length === 0) {
-            grid.innerHTML = `<p style="color: var(--muted); grid-column: span 2; text-align: center;">Add shoes with images to see them here.</p>`;
+            grid.innerHTML = `<p style="color: var(--muted); grid-column: span 2; text-align: center; padding: 20px;">Add shoes with images to see them here.</p>`;
             return;
         }
 
         latestProducts.forEach(p => {
-            const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
             grid.innerHTML += `
                 <div class="gallery-item" onclick="openLightbox('${p.id}')">
                   <img src="${p.image_url}" alt="${p.name}">
@@ -275,7 +308,7 @@
         document.getElementById('lightbox-img').src = product.image_url;
         document.getElementById('lightbox-name').textContent = product.name;
         document.getElementById('lightbox-brand').textContent = product.brand || 'SoulHub Collection';
-        document.getElementById('lightbox-price').textContent = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(product.price);
+        document.getElementById('lightbox-price').textContent = formatKsh(product.price);
 
         document.getElementById('lightbox').classList.add('active');
     }
