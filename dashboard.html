@@ -148,13 +148,10 @@
   <script>
     let latestProducts = [];
 
-    window.addEventListener('load', async () => {
-        // Wait for app.js to get the user info
-        setTimeout(async () => {
-            setGreeting();
-            await loadDashboardData();
-        }, 500);
-    });
+    window.addEventListener('appReady', async () => {
+    setGreeting();
+    await loadDashboardData();
+});
 
     function setGreeting() {
         const hours = new Date().getHours();
