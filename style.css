@@ -131,4 +131,52 @@ body {
   .main-content { margin-left: 0; }
   .menu-toggle { display: block; }
   .top-header { justify-content: flex-start; gap: 15px; }
+} 
+/* --- SEARCH BAR --- */
+.search-bar {
+  width: 100%;
+  padding: 12px 15px;
+  margin-bottom: 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: "Lato", sans-serif;
+  font-size: 15px;
+  outline: none;
 }
+.search-bar:focus { border-color: var(--gold); }
+
+/* --- FILE UPLOAD --- */
+.file-upload-wrapper {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  border: 2px dashed rgba(209,178,124,.5);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #111;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.file-upload-wrapper:hover { border-color: var(--gold); }
+.file-upload-wrapper input[type="file"] {
+  position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+}
+.file-upload-text { color: var(--muted); font-size: 14px; pointer-events: none; }
+.image-preview {
+  width: 100%; height: 100%; object-fit: contain; display: none;
+}
+
+/* --- PRODUCT ACTIONS (DELETE BUTTON) --- */
+.product-actions {
+  display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;
+}
+.btn-delete {
+  background: transparent; border: 1px solid var(--error); color: var(--error);
+  padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s;
+}
+.btn-delete:hover { background: rgba(255, 119, 119, 0.1); }
