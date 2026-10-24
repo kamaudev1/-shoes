@@ -10,6 +10,7 @@
 </head>
 <body>
 
+  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header"><h2>SoulHub</h2></div>
     <div class="user-profile">
@@ -44,6 +45,7 @@
         <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
         Suppliers
       </a>
+      <!-- Owner only links -->
       <a href="staff.html" class="nav-item owner-only" style="display:none;">
         <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
         Staff
@@ -58,36 +60,230 @@
     </div>
   </aside>
 
+  <!-- MAIN CONTENT -->
   <main class="main-content">
     <header class="top-header">
       <button class="menu-toggle" id="menu-toggle">☰</button>
-      <h1>Overview</h1>
+      <div>
+        <h1 id="greeting-text" style="font-size: 24px;">Welcome back</h1>
+        <p id="date-text" style="color: var(--muted); font-size: 14px; margin-top: 5px;"></p>
+      </div>
     </header>
 
+    <!-- METRICS GRID -->
     <div class="metrics-grid">
       <div class="metric-card">
-        <div class="metric-title">Today's Sales</div>
-        <div class="metric-value">KSh 45,500</div>
-        <div class="metric-desc">↑ 12% from yesterday</div>
+        <div class="metric-title">Today's Revenue</div>
+        <div class="metric-value" id="metric-revenue">KSh 0.00</div>
+        <div class="metric-desc" id="metric-transactions">0 Transactions</div>
       </div>
       <div class="metric-card">
         <div class="metric-title">Total Inventory Value</div>
-        <div class="metric-value">KSh 1,245,000</div>
-        <div class="metric-desc">842 pairs in stock</div>
+        <div class="metric-value" id="metric-inventory-value">KSh 0.00</div>
+        <div class="metric-desc" id="metric-pairs">0 Pairs in stock</div>
       </div>
       <div class="metric-card">
         <div class="metric-title">Low Stock Alerts</div>
-        <div class="metric-value" style="color: #ffb347;">14</div>
+        <div class="metric-value" id="metric-low-stock" style="color: #ffb347;">0</div>
         <div class="metric-desc warning">Sizes running low</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Active Customers</div>
+        <div class="metric-value" id="metric-customers">0</div>
+        <div class="metric-desc">Registered in CRM</div>
       </div>
     </div>
 
-    <div class="content-panel">
-      <h2>Welcome to SoulHub</h2>
-      <p>Select a module from the sidebar to begin managing your boutique.</p>
+    <!-- SPLIT LAYOUT: RECENT SALES & GALLERY -->
+    <div class="dashboard-grid">
+      
+      <!-- Recent Sales Panel -->
+      <div class="table-responsive" style="margin: 0;">
+        <div class="panel-header">
+          <h3>Recent Activity</h3>
+          <a href="reports.html">View All</a>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Receipt</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody id="recent-sales-body">
+            <tr><td colspan="3" style="text-align: center; color: var(--muted);">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Latest Arrivals Gallery -->
+      <div class="table-responsive" style="margin: 0;">
+        <div class="panel-header">
+          <h3>Latest Arrivals</h3>
+          <a href="inventory.html">View Inventory</a>
+        </div>
+        <div class="gallery-grid" id="gallery-grid">
+          <p style="color: var(--muted); grid-column: span 2; text-align: center;">Loading gallery...</p>
+        </div>
+      </div>
+
     </div>
+
   </main>
 
+  <!-- LIGHTBOX MODAL -->
+  <div class="lightbox" id="lightbox">
+    <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
+    <img id="lightbox-img" src="" alt="Shoe Image">
+    <div class="lightbox-details">
+      <h2 id="lightbox-name">Shoe Name</h2>
+      <p id="lightbox-price">KSh 0.00</p>
+      <span id="lightbox-brand">Brand</span>
+    </div>
+  </div>
+
   <script src="app.js"></script>
+  
+  <script>
+    let latestProducts = [];
+
+    window.addEventListener('load', async () => {
+        // Wait for app.js to get the user info
+        setTimeout(async () => {
+            setGreeting();
+            await loadDashboardData();
+        }, 500);
+    });
+
+    function setGreeting() {
+        const hours = new Date().getHours();
+        let greeting = "Good evening";
+        if (hours < 12) greeting = "Good morning";
+        else if (hours < 18) greeting = "Good afternoon";
+        
+        // window.currentUserName is set in app.js
+        document.getElementById('greeting-text').textContent = `${greeting}, ${window.currentUserName || 'User'}`;
+        
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('date-text').textContent = `Here is what's happening at SoulHub on ${new Date().toLocaleDateString('en-KE', options)}`;
+    }
+
+    async function loadDashboardData() {
+        const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
+
+        // 1. Fetch Products (for inventory value, low stock, and gallery)
+        const { data: products } = await supabaseClient.from('products').select('*').order('created_at', { ascending: false });
+        
+        if (products) {
+            // Calculate Inventory Value & Low Stock
+            let totalValue = 0;
+            let totalPairs = 0;
+            let lowStockCount = 0;
+            const threshold = shopConfig?.low_stock_threshold || 2; // Fallback to 2
+
+            products.forEach(p => {
+                const sizes = [38, 39, 40, 41, 42];
+                sizes.forEach(size => {
+                    const qty = p[`size_${size}`] || 0;
+                    totalPairs += qty;
+                    totalValue += (p.price * qty);
+                    if (qty > 0 && qty <= threshold) lowStockCount++;
+                });
+            });
+
+            document.getElementById('metric-inventory-value').textContent = formatKsh(totalValue);
+            document.getElementById('metric-pairs').textContent = `${totalPairs} Pairs in stock`;
+            document.getElementById('metric-low-stock').textContent = lowStockCount;
+
+            // Populate Gallery (Latest 4 items with images)
+            latestProducts = products.filter(p => p.image_url).slice(0, 4);
+            renderGallery();
+        }
+
+        // 2. Fetch Today's Sales & Recent Activity
+        const todayStart = new Date();
+        todayStart.setHours(0,0,0,0);
+
+        const { data: sales } = await supabaseClient
+            .from('sales')
+            .select('*')
+            .gte('created_at', todayStart.toISOString())
+            .order('created_at', { ascending: false });
+
+        if (sales) {
+            const todayRevenue = sales.reduce((sum, s) => sum + Number(s.total_amount), 0);
+            document.getElementById('metric-revenue').textContent = formatKsh(todayRevenue);
+            document.getElementById('metric-transactions').textContent = `${sales.length} Transactions`;
+            
+            renderRecentSales(sales.slice(0, 5)); // Only show last 5
+        }
+
+        // 3. Fetch Customer Count
+        const { count } = await supabaseClient.from('customers').select('*', { count: 'exact', head: true });
+        document.getElementById('metric-customers').textContent = count || 0;
+    }
+
+    function renderRecentSales(recentSales) {
+        const tbody = document.getElementById('recent-sales-body');
+        tbody.innerHTML = '';
+
+        if (recentSales.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--muted);">No sales yet today.</td></tr>`;
+            return;
+        }
+
+        recentSales.forEach(sale => {
+            const timeStr = new Date(sale.created_at).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
+            const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
+            
+            tbody.innerHTML += `
+                <tr>
+                  <td>${timeStr}</td>
+                  <td><span class="badge">${sale.receipt_number}</span></td>
+                  <td style="font-family: 'Cinzel', serif; color: var(--gold-light);">${formatKsh(sale.total_amount)}</td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderGallery() {
+        const grid = document.getElementById('gallery-grid');
+        grid.innerHTML = '';
+
+        if (latestProducts.length === 0) {
+            grid.innerHTML = `<p style="color: var(--muted); grid-column: span 2; text-align: center;">Add shoes with images to see them here.</p>`;
+            return;
+        }
+
+        latestProducts.forEach(p => {
+            const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
+            grid.innerHTML += `
+                <div class="gallery-item" onclick="openLightbox('${p.id}')">
+                  <img src="${p.image_url}" alt="${p.name}">
+                  <div class="gallery-item-info">
+                    <h4>${p.name}</h4>
+                    <p>${formatKsh(p.price)}</p>
+                  </div>
+                </div>
+            `;
+        });
+    }
+
+    // --- LIGHTBOX LOGIC ---
+    window.openLightbox = function(productId) {
+        const product = latestProducts.find(p => p.id === productId);
+        if (!product) return;
+
+        document.getElementById('lightbox-img').src = product.image_url;
+        document.getElementById('lightbox-name').textContent = product.name;
+        document.getElementById('lightbox-brand').textContent = product.brand || 'SoulHub Collection';
+        document.getElementById('lightbox-price').textContent = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(product.price);
+
+        document.getElementById('lightbox').classList.add('active');
+    }
+
+    window.closeLightbox = () => document.getElementById('lightbox').classList.remove('active');
+  </script>
 </body>
 </html>
