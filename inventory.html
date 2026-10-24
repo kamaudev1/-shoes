@@ -247,11 +247,12 @@
             // 3. Save Product to Database
             btn.textContent = "Saving...";
             const newProduct = {
-                name: document.getElementById('p-name').value,
-                brand: document.getElementById('p-brand').value,
-                category: document.getElementById('p-category').value,
-                price: parseFloat(document.getElementById('p-price').value),
-                image_url: imageUrl,
+    name: document.getElementById('p-name').value,
+    brand: document.getElementById('p-brand').value,
+    category: document.getElementById('p-category').value,
+    cost_price: parseFloat(document.getElementById('p-cost-price').value) || 0, // <-- NEW LINE
+    price: parseFloat(document.getElementById('p-price').value),
+          image_url: imageUrl,
                 size_38: parseInt(document.getElementById('s-38').value) || 0,
                 size_39: parseInt(document.getElementById('s-39').value) || 0,
                 size_40: parseInt(document.getElementById('s-40').value) || 0,
