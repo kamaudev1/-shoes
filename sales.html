@@ -37,10 +37,23 @@
         <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
         Reports
       </a>
+      <a href="customers.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        Customers
+      </a>
+      <a href="suppliers.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+        Suppliers
+      </a>
+      
       <!-- Owner only links -->
       <a href="staff.html" class="nav-item owner-only" style="display:none;">
         <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
         Staff
+      </a>
+      <a href="settings.html" class="nav-item owner-only" style="display:none;">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Settings
       </a>
     </nav>
     <div class="sidebar-footer">
@@ -111,10 +124,14 @@
     let allProducts = [];
     let cart = [];
     let selectedProduct = null;
+    let shopConfig = null;
 
-    window.addEventListener('load', () => {
-        loadPOSProducts();
+    // Initialize the POS
+    window.addEventListener('load', async () => {
+        await fetchShopSettings();
+        await loadPOSProducts();
         
+        // Search functionality
         document.getElementById('pos-search').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             const filtered = allProducts.filter(p => 
@@ -124,9 +141,24 @@
             renderPOSGrid(filtered);
         });
 
+        // Checkout button
         document.getElementById('checkout-btn').addEventListener('click', processCheckout);
     });
 
+    // Fetch Settings for Receipt
+    async function fetchShopSettings() {
+        const { data, error } = await supabaseClient
+            .from('shop_settings')
+            .select('*')
+            .eq('id', 1)
+            .single();
+            
+        if (!error && data) {
+            shopConfig = data;
+        }
+    }
+
+    // Fetch Products
     async function loadPOSProducts() {
         const { data, error } = await supabaseClient
             .from('products')
@@ -139,6 +171,7 @@
         }
     }
 
+    // Render Product Grid
     function renderPOSGrid(products) {
         const grid = document.getElementById('pos-grid');
         grid.innerHTML = '';
@@ -162,7 +195,7 @@
         });
     }
 
-    // --- SIZE SELECTION ---
+    // Open Size Modal
     window.openSizeModal = function(productId) {
         selectedProduct = allProducts.find(p => p.id === productId);
         if (!selectedProduct) return;
@@ -189,7 +222,7 @@
 
     window.closeSizeModal = () => document.getElementById('size-modal').classList.remove('active');
 
-    // --- CART ---
+    // Add to Cart
     function addToCart(product, size) {
         const existingItem = cart.find(item => item.product.id === product.id && item.size === size);
         
@@ -203,6 +236,7 @@
         renderCart();
     }
 
+    // Render Cart
     function renderCart() {
         const cartContainer = document.getElementById('cart-items');
         const totalEl = document.getElementById('cart-total');
@@ -240,12 +274,13 @@
         checkoutBtn.disabled = false;
     }
 
+    // Remove from Cart
     window.removeFromCart = function(index) {
         cart.splice(index, 1);
         renderCart();
     }
 
-    // --- CHECKOUT & RECEIPT ---
+    // Process Checkout
     async function processCheckout() {
         const checkoutBtn = document.getElementById('checkout-btn');
         checkoutBtn.textContent = "Processing...";
@@ -262,10 +297,10 @@
                 size: item.size,
                 quantity: item.quantity,
                 price: item.product.price,
-                cost_price: item.product.cost_price || 0 // <-- Snapshot the cost!
+                cost_price: item.product.cost_price || 0 // Snapshot the cost
             }));
 
-            // 2. Save Sale
+            // 2. Save Sale to Database
             const { data: { session } } = await supabaseClient.auth.getSession();
             
             const { error: saleError } = await supabaseClient.from('sales').insert([{
@@ -277,7 +312,7 @@
 
             if (saleError) throw saleError;
 
-            // 3. Update Inventory
+            // 3. Update Inventory Stock
             for (const item of cart) {
                 const currentQty = item.product[`size_${item.size}`];
                 const newQty = currentQty - item.quantity;
@@ -292,7 +327,7 @@
             showReceipt(receiptNumber, total, itemsData);
             cart = [];
             renderCart();
-            loadPOSProducts();
+            loadPOSProducts(); // Refresh grid
 
         } catch (error) {
             alert("Checkout failed: " + error.message);
@@ -301,39 +336,57 @@
         }
     }
 
+    // Show Receipt
     function showReceipt(receiptNo, total, items) {
         const date = new Date().toLocaleString();
         let itemsHtml = '';
         
+        // VAT Calculation (Inclusive)
+        let vatHtml = '';
+        if (shopConfig && shopConfig.vat_rate > 0) {
+            const vatAmount = total - (total / (1 + (shopConfig.vat_rate / 100)));
+            vatHtml = `<p style="font-size: 12px; text-align: right; color: #555;">VAT (${shopConfig.vat_rate}%): KSh ${vatAmount.toFixed(2)}</p>`;
+        }
+
         items.forEach(i => {
             itemsHtml += `
                 <div class="receipt-item">
                     <span>${i.quantity}x ${i.name} (Sz ${i.size})</span>
-                    <span>KSh ${i.price * i.quantity}</span>
+                    <span>KSh ${(i.price * i.quantity).toLocaleString()}</span>
                 </div>
             `;
         });
 
+        // Fallbacks just in case settings are missing
+        const shopName = shopConfig?.shop_name || "SoulHub";
+        const shopAddress = shopConfig?.address || "Nairobi, Kenya";
+        const shopPhone = shopConfig?.phone || "+254 700 000 000";
+        const shopEmail = shopConfig?.email || "hello@soulhub.co.ke";
+        const footer = shopConfig?.receipt_footer || "Thank you for shopping with us!";
+
         document.getElementById('receipt-content').innerHTML = `
-            <h2>SoulHub</h2>
-            <p style="text-align: center; font-size: 12px;">High-end shoe boutique</p>
+            <h2>${shopName}</h2>
+            <p style="text-align: center; font-size: 12px;">${shopAddress}</p>
+            <p style="text-align: center; font-size: 12px;">Tel: ${shopPhone} | ${shopEmail}</p>
             <div class="receipt-line"></div>
             <p>Receipt: ${receiptNo}</p>
             <p>Date: ${date}</p>
             <div class="receipt-line"></div>
             ${itemsHtml}
             <div class="receipt-line"></div>
-            <p style="font-size: 18px; font-weight: bold; display: flex; justify-content: space-between;">
+            ${vatHtml}
+            <p style="font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; margin-top: 5px;">
                 <span>TOTAL:</span>
                 <span>KSh ${total.toLocaleString()}</span>
             </p>
             <div class="receipt-line"></div>
-            <p style="text-align: center; font-size: 12px;">Thank you for shopping with us!</p>
+            <p style="text-align: center; font-size: 12px; font-style: italic;">${footer}</p>
         `;
 
         document.getElementById('receipt-modal').classList.add('active');
     }
 
+    // Close Receipt Modal
     window.closeReceiptModal = () => {
         document.getElementById('receipt-modal').classList.remove('active');
         document.getElementById('checkout-btn').textContent = "Checkout";
