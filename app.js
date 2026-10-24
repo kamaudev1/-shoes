@@ -17,6 +17,7 @@ async function initApp() {
     const metadata = user.user_metadata || {};
     const fullName = metadata.full_name || "User";
     const role = metadata.role || "sales";
+window.currentUserRole = role; // Expose role globally
 
     // 3. Update Sidebar UI
     const userNameEl = document.getElementById("user-name");
