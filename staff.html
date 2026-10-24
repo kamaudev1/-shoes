@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staff Management - SoulHub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><h2>SoulHub</h2></div>
+    <div class="user-profile">
+      <div class="avatar" id="user-initial">S</div>
+      <div class="user-info">
+        <h4 id="user-name">Loading...</h4>
+        <span class="role-badge" id="user-role">...</span>
+      </div>
+    </div>
+    <nav class="nav-menu">
+      <a href="dashboard.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        Overview
+      </a>
+      <a href="inventory.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+        Inventory
+      </a>
+      <a href="sales.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+        Sales (POS)
+      </a>
+      <a href="reports.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        Reports
+      </a>
+      <a href="customers.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        Customers
+      </a>
+      <!-- Owner only links -->
+      <a href="staff.html" class="nav-item owner-only active" style="display:none;">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+        Staff
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" id="logout-btn">Log Out</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <header class="top-header">
+      <button class="menu-toggle" id="menu-toggle">☰</button>
+      <h1>Staff Management</h1>
+    </header>
+
+    <!-- The container will be hidden if the user is not an owner -->
+    <div id="staff-container" style="display: none;">
+      <div class="content-panel" style="text-align: left; padding: 20px; margin-bottom: 20px; background: rgba(209,178,124,0.05); border-color: var(--border);">
+        <h3 style="font-family: 'Cinzel', serif; color: var(--gold); margin-bottom: 10px;">Owner Controls</h3>
+        <p style="color: var(--muted); font-size: 14px;">As an Owner, you can view all registered staff members and update their roles. Changes take effect immediately. A user may need to log out and log back in to see menu changes.</p>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Staff Name</th>
+              <th>Email Address</th>
+              <th>Current Role</th>
+              <th>Date Joined</th>
+              <th>Change Role</th>
+            </tr>
+          </thead>
+          <tbody id="staff-table-body">
+            <tr><td colspan="5" style="text-align: center; color: var(--muted);">Loading staff data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Unauthorized View -->
+    <div id="unauthorized-view" style="display: none;">
+      <div class="unauthorized-panel">
+        <h2>Access Denied</h2>
+        <p>Only the Shop Owner can access Staff Management.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- LOAD SHARED APP.JS -->
+  <script src="app.js"></script>
+  
+  <!-- PAGE SPECIFIC LOGIC -->
+  <script>
+    let allStaff = [];
+
+    window.addEventListener('load', async () => {
+        // Wait for app.js to fetch the role
+        setTimeout(async () => {
+            if (window.currentUserRole !== 'owner') {
+                document.getElementById('unauthorized-view').style.display = 'block';
+                return;
+            }
+
+            // User is an owner, show the UI and fetch data
+            document.getElementById('staff-container').style.display = 'block';
+            await loadStaffData();
+        }, 500); 
+    });
+
+    async function loadStaffData() {
+        // Call our secure Database Function
+        const { data, error } = await supabaseClient.rpc('get_all_staff');
+
+        if (error) {
+            console.error(error);
+            document.getElementById('staff-table-body').innerHTML = `<tr><td colspan="5" style="color: var(--error);">Error: ${error.message}</td></tr>`;
+            return;
+        }
+
+        allStaff = data;
+        renderStaffTable();
+    }
+
+    function renderStaffTable() {
+        const tbody = document.getElementById('staff-table-body');
+        tbody.innerHTML = '';
+
+        if (allStaff.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--muted);">No staff found.</td></tr>`;
+            return;
+        }
+
+        allStaff.forEach(staff => {
+            const dateStr = new Date(staff.created_at).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            // Format the role badge
+            const roleBadge = `<span class="badge" style="text-transform: capitalize;">${staff.role || 'Unassigned'}</span>`;
+
+            // Create the dropdown for changing roles
+            const roleOptions = ['owner', 'manager', 'sales'];
+            let selectHtml = `<select class="date-filter" style="padding: 5px; font-size: 12px;" onchange="changeRole('${staff.id}', this.value)">`;
+            roleOptions.forEach(opt => {
+                selectHtml += `<option value="${opt}" ${staff.role === opt ? 'selected' : ''}>${opt.charAt(0).toUpperCase() + opt.slice(1)}</option>`;
+            });
+            selectHtml += `</select>`;
+
+            // Prevent the owner from accidentally demoting themselves (optional safety)
+            const isSelf = staff.email === window.currentUserEmail; // We can add this to app.js if needed, for now we allow it but warn.
+            
+            tbody.innerHTML += `
+                <tr>
+                  <td style="font-weight: 600; color: var(--gold-light);">${staff.full_name || 'Unknown'}</td>
+                  <td>${staff.email}</td>
+                  <td>${roleBadge}</td>
+                  <td>${dateStr}</td>
+                  <td>${selectHtml}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // --- CHANGE ROLE LOGIC ---
+    window.changeRole = async function(userId, newRole) {
+        if (!confirm(`Are you sure you want to change this user's role to ${newRole.toUpperCase()}?`)) {
+            // If they cancel, reload the table to reset the dropdown to the original value
+            renderStaffTable();
+            return;
+        }
+
+        const { error } = await supabaseClient.rpc('update_staff_role', {
+            target_user_id: userId,
+            new_role: newRole
+        });
+
+        if (error) {
+            alert("Failed to update role: " + error.message);
+            renderStaffTable(); // Reset the dropdown
+        } else {
+            alert("Role updated successfully!");
+            loadStaffData(); // Refresh the table to show the new badge
+        }
+    }
+  </script>
+</body>
+</html>
