@@ -20,7 +20,9 @@ async function initApp() {
 window.currentUserRole = role; // Expose role globally
 
     // 3. Update Sidebar UI
-    const userNameEl = document.getElementById("user-name");
+   window.currentUserEmail = user.email;
+ const userNameEl = document.getElementById("user-name");
+
     const userRoleEl = document.getElementById("user-role");
     const userInitialEl = document.getElementById("user-initial");
     
