@@ -6,46 +6,53 @@
   <title>Reports - SoulHub</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Libraries for Excel & PDF generation -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+  
   <link rel="stylesheet" href="style.css">
   
   <style>
-    /* Download button style */
-    .btn-download {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      background: transparent;
-      border: 1px solid var(--gold);
-      color: var(--gold);
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: "Lato", sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-    .btn-download:hover:not(:disabled) {
-      background: rgba(209, 178, 124, 0.1);
-      transform: translateY(-1px);
-    }
-    .btn-download:active:not(:disabled) {
-      transform: translateY(0);
-    }
-    .btn-download:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
     .filter-controls {
       display: flex;
       gap: 10px;
       align-items: center;
+      flex-wrap: wrap;
     }
-    @media (max-width: 600px) {
-      .filter-bar { flex-direction: column; align-items: stretch; }
-      .filter-controls { flex-direction: column; }
-      .filter-controls > * { width: 100%; }
-      .btn-download { justify-content: center; }
+    .download-group {
+      display: flex;
+      gap: 5px;
+      background: rgba(20,20,20,0.5);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .btn-export {
+      padding: 8px 14px;
+      background: transparent;
+      border: none;
+      color: var(--gold);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: "Lato", sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-export:hover:not(:disabled) {
+      background: rgba(209, 178, 124, 0.15);
+    }
+    .btn-export:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    @media (max-width: 700px) {
+      .filter-bar { flex-direction: column; align-items: flex-start; }
+      .filter-controls { width: 100%; flex-direction: column; align-items: stretch; }
+      .download-group { justify-content: space-between; }
+      .btn-export { flex: 1; text-align: center; }
     }
   </style>
 </head>
@@ -111,6 +118,7 @@
       
       <div class="filter-bar">
         <h2 style="font-family: 'Cinzel', serif;">Sales Performance</h2>
+        
         <div class="filter-controls">
           <select id="date-filter" class="date-filter">
             <option value="today" selected>Today's Sales</option>
@@ -118,9 +126,13 @@
             <option value="30days">This Month</option>
             <option value="all">All Time</option>
           </select>
-          <button id="download-btn" class="btn-download" onclick="downloadReport()">
-            ⬇ Download Report
-          </button>
+          
+          <!-- NEW EXPORT BUTTONS -->
+          <div class="download-group">
+            <button class="btn-export" onclick="exportCSV()">CSV</button>
+            <button class="btn-export" onclick="exportExcel()">Excel</button>
+            <button class="btn-export" onclick="exportPDF()">PDF</button>
+          </div>
         </div>
       </div>
 
@@ -171,11 +183,11 @@
   
   <script>
     let allSales = [];
-    let currentFilteredSales = []; // Stored so download matches exactly what's on screen
+    let currentFilteredSales = [];
+    let currentReportData = []; // Standardized data array for exports
+    let grandTotals = { revenue: 0, cost: 0, profit: 0, items: 0 };
 
-    // Wait for auth check
     window.addEventListener('appReady', async () => {
-        // Security check
         if (window.currentUserRole !== 'owner' && window.currentUserRole !== 'manager') {
             document.getElementById('reports-container').innerHTML = `
               <div class="unauthorized-panel">
@@ -200,7 +212,6 @@
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.error("Error fetching sales:", error);
             document.getElementById('sales-table-body').innerHTML = `<tr><td colspan="5" style="color: var(--error);">Error loading data: ${error.message}</td></tr>`;
             return;
         }
@@ -209,7 +220,6 @@
         renderReport();
     }
 
-    // Filter sales based on the selected date range
     function getFilteredSales(filter) {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -230,163 +240,221 @@
         let totalRevenue = 0;
         let totalCost = 0;
         let totalItems = 0;
+        currentReportData = []; // Reset for export
 
         currentFilteredSales.forEach(sale => {
-            totalRevenue += Number(sale.total_amount);
+            let saleCost = 0;
+            let itemsSummary = [];
+            
             if (sale.items && Array.isArray(sale.items)) {
                 sale.items.forEach(item => {
-                    totalCost += (Number(item.cost_price) || 0) * (Number(item.quantity) || 1);
+                    saleCost += ((Number(item.cost_price) || 0) * (Number(item.quantity) || 1));
+                    itemsSummary.push(`${item.quantity}x ${item.name} (Sz ${item.size})`);
                     totalItems += Number(item.quantity) || 1;
                 });
             }
+            
+            const saleRevenue = Number(sale.total_amount) || 0;
+            const saleProfit = saleRevenue - saleCost;
+            totalRevenue += saleRevenue;
+            totalCost += saleCost;
+
+            const dateObj = new Date(sale.created_at);
+
+            // Push to export array
+            currentReportData.push({
+                Date: dateObj.toLocaleDateString('en-KE'),
+                Time: dateObj.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }),
+                Receipt: sale.receipt_number,
+                Items: itemsSummary.join(' | '),
+                Revenue: saleRevenue,
+                Cost: saleCost,
+                Profit: saleProfit
+            });
         });
 
         const totalProfit = totalRevenue - totalCost;
         const margin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0;
         const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
         
+        grandTotals = { revenue: totalRevenue, cost: totalCost, profit: totalProfit, items: totalItems };
+
         document.getElementById('metric-revenue').textContent = formatKsh(totalRevenue);
         document.getElementById('metric-cost').textContent = formatKsh(totalCost);
         document.getElementById('metric-profit').textContent = formatKsh(totalProfit);
         document.getElementById('metric-items').textContent = totalItems;
         document.getElementById('metric-transactions').textContent = `${currentFilteredSales.length} Transactions`;
         document.getElementById('metric-margin').textContent = `${margin}% margin`;
-        document.getElementById('metric-profit').style.color = totalProfit >= 0 ? 'var(--success)' : 'var(--error)';
-
-        // Render Table
+        
         const tbody = document.getElementById('sales-table-body');
         tbody.innerHTML = '';
 
         if (currentFilteredSales.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--muted);">No sales found for this period.</td></tr>`;
-            document.getElementById('download-btn').disabled = true;
             return;
         }
 
-        document.getElementById('download-btn').disabled = false;
-
-        currentFilteredSales.forEach(sale => {
-            let saleCost = 0;
-            let itemsSummary = [];
+        currentFilteredSales.forEach((sale, index) => {
+            const rowData = currentReportData[index];
+            const profitClass = rowData.Profit >= 0 ? 'text-success' : 'text-error';
             
-            if (sale.items && Array.isArray(sale.items)) {
-                sale.items.forEach(item => {
-                    saleCost += ((Number(item.cost_price) || 0) * (Number(item.quantity) || 1));
-                    itemsSummary.push(`${item.quantity}x ${item.name} (Sz ${item.size})`);
-                });
-            }
-            
-            const saleProfit = sale.total_amount - saleCost;
-            const profitClass = saleProfit >= 0 ? 'text-success' : 'text-error';
-            
-            const dateObj = new Date(sale.created_at);
-            const dateStr = dateObj.toLocaleDateString('en-KE', { month: 'short', day: 'numeric' });
-            const timeStr = dateObj.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
-
             tbody.innerHTML += `
                 <tr>
-                  <td style="white-space: nowrap;">${dateStr}, ${timeStr}</td>
+                  <td style="white-space: nowrap;">${rowData.Date}, ${rowData.Time}</td>
                   <td><span class="badge">${sale.receipt_number}</span></td>
-                  <td style="font-size: 12px; color: var(--muted); max-width: 250px;">${itemsSummary.join('<br>')}</td>
-                  <td style="font-family: 'Cinzel', serif;">${formatKsh(sale.total_amount)}</td>
-                  <td class="${profitClass}" style="font-weight: 600;">${formatKsh(saleProfit)}</td>
+                  <td style="font-size: 12px; color: var(--muted); max-width: 250px;">${rowData.Items.split(' | ').join('<br>')}</td>
+                  <td style="font-family: 'Cinzel', serif;">${formatKsh(rowData.Revenue)}</td>
+                  <td class="${profitClass}" style="font-weight: 600;">${formatKsh(rowData.Profit)}</td>
                 </tr>
             `;
         });
     }
 
-    // --- DOWNLOAD REPORT AS CSV ---
-    function downloadReport() {
-        if (currentFilteredSales.length === 0) {
-            alert("There are no sales to download for this period.");
-            return;
-        }
+    // ==========================================
+    // EXPORT FUNCTIONS
+    // ==========================================
+    
+    function getFilterLabel() {
+        const sel = document.getElementById('date-filter');
+        return sel.options[sel.selectedIndex].text;
+    }
 
-        const filterSelect = document.getElementById('date-filter');
-        const filterLabel = filterSelect.options[filterSelect.selectedIndex].text;
-        const filterValue = filterSelect.value;
-
-        // Build CSV rows
-        const rows = [];
-        
-        // Report header
-        rows.push(['SoulHub - Sales Report']);
-        rows.push([`Period: ${filterLabel}`]);
-        rows.push([`Generated: ${new Date().toLocaleString('en-KE')}`]);
-        rows.push([`Generated by: ${window.currentUserName || 'Staff'} (${window.currentUserRole})`]);
-        rows.push([]); // blank row
-        
-        // Column headers
-        rows.push(['Date', 'Time', 'Receipt #', 'Items Sold', 'Revenue (KSh)', 'Cost (KSh)', 'Profit (KSh)']);
-        
-        // Data rows
-        let grandRevenue = 0;
-        let grandCost = 0;
-        let grandItems = 0;
-        
-        currentFilteredSales.forEach(sale => {
-            let saleCost = 0;
-            let itemsSummary = [];
-            
-            if (sale.items && Array.isArray(sale.items)) {
-                sale.items.forEach(item => {
-                    saleCost += ((Number(item.cost_price) || 0) * (Number(item.quantity) || 1));
-                    itemsSummary.push(`${item.quantity}x ${item.name} (Sz ${item.size})`);
-                    grandItems += Number(item.quantity) || 1;
-                });
-            }
-            
-            const saleRevenue = Number(sale.total_amount) || 0;
-            const saleProfit = saleRevenue - saleCost;
-            grandRevenue += saleRevenue;
-            grandCost += saleCost;
-            
-            const dateObj = new Date(sale.created_at);
-            rows.push([
-                dateObj.toLocaleDateString('en-KE'),
-                dateObj.toLocaleTimeString('en-KE'),
-                sale.receipt_number,
-                itemsSummary.join(' | '),
-                saleRevenue.toFixed(2),
-                saleCost.toFixed(2),
-                saleProfit.toFixed(2)
-            ]);
-        });
-        
-        // Summary section
-        rows.push([]);
-        rows.push(['', '', '', 'GRAND TOTAL', grandRevenue.toFixed(2), grandCost.toFixed(2), (grandRevenue - grandCost).toFixed(2)]);
-        rows.push(['', '', '', 'Total Items Sold', grandItems]);
-        rows.push(['', '', '', 'Transactions', currentFilteredSales.length]);
-
-        // Escape and convert to CSV string
-        const csv = rows.map(row => 
-            row.map(cell => {
-                const str = String(cell ?? '');
-                // Wrap in quotes if it contains comma, quote, or newline
-                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                    return `"${str.replace(/"/g, '""')}"`;
-                }
-                return str;
-            }).join(',')
-        ).join('\r\n');
-
-        // Create Blob with BOM for Excel UTF-8 support
-        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        
-        // Format filename: soulhub-report-today-2025-10-24.csv
+    function getFilename(ext) {
+        const filter = document.getElementById('date-filter').value;
         const today = new Date().toISOString().split('T')[0];
-        const filename = `soulhub-report-${filterValue}-${today}.csv`;
-        
+        return `soulhub-report-${filter}-${today}.${ext}`;
+    }
+
+    // 1. CSV EXPORT
+    function exportCSV() {
+        if (currentReportData.length === 0) return alert("No data to export.");
+
+        const rows = [
+            ['SoulHub - Sales Report'],
+            [`Period: ${getFilterLabel()}`],
+            [`Generated: ${new Date().toLocaleString('en-KE')}`],
+            [`Generated by: ${window.currentUserName}`],
+            [],
+            ['Date', 'Time', 'Receipt #', 'Items Sold', 'Revenue (KSh)', 'Cost (KSh)', 'Profit (KSh)']
+        ];
+
+        currentReportData.forEach(d => {
+            rows.push([d.Date, d.Time, d.Receipt, d.Items, d.Revenue.toFixed(2), d.Cost.toFixed(2), d.Profit.toFixed(2)]);
+        });
+
+        rows.push([]);
+        rows.push(['', '', '', 'GRAND TOTAL', grandTotals.revenue.toFixed(2), grandTotals.cost.toFixed(2), grandTotals.profit.toFixed(2)]);
+        rows.push(['', '', '', 'Total Items', grandTotals.items]);
+
+        const csv = rows.map(r => r.map(c => {
+            const str = String(c ?? '');
+            return (str.includes(',') || str.includes('"') || str.includes('\n')) ? `"${str.replace(/"/g, '""')}"` : str;
+        }).join(',')).join('\r\n');
+
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
+        link.href = URL.createObjectURL(blob);
+        link.download = getFilename('csv');
         link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        URL.revokeObjectURL(link.href);
+    }
+
+    // 2. EXCEL EXPORT (.xlsx)
+    function exportExcel() {
+        if (currentReportData.length === 0) return alert("No data to export.");
+
+        // Prepare data for SheetJS
+        const excelData = currentReportData.map(d => ({
+            "Date": d.Date,
+            "Time": d.Time,
+            "Receipt #": d.Receipt,
+            "Items Sold": d.Items, // Wide column will fix the truncation issue
+            "Revenue (KSh)": d.Revenue,
+            "Cost (KSh)": d.Cost,
+            "Profit (KSh)": d.Profit
+        }));
+
+        // Add totals row
+        excelData.push({
+            "Date": "",
+            "Time": "",
+            "Receipt #": "GRAND TOTAL",
+            "Items Sold": `Total Items: ${grandTotals.items}`,
+            "Revenue (KSh)": grandTotals.revenue,
+            "Cost (KSh)": grandTotals.cost,
+            "Profit (KSh)": grandTotals.profit
+        });
+
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        
+        // Auto-size columns
+        ws['!cols'] = [
+            {wch: 12}, // Date
+            {wch: 10}, // Time
+            {wch: 15}, // Receipt
+            {wch: 50}, // Items (Make this very wide!)
+            {wch: 15}, // Revenue
+            {wch: 15}, // Cost
+            {wch: 15}  // Profit
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Sales Report");
+        XLSX.writeFile(wb, getFilename('xlsx'));
+    }
+
+    // 3. PDF EXPORT
+    function exportPDF() {
+        if (currentReportData.length === 0) return alert("No data to export.");
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.text("SoulHub", 14, 22);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Financial Sales Report`, 14, 30);
+        doc.text(`Period: ${getFilterLabel()}`, 14, 35);
+        doc.text(`Generated: ${new Date().toLocaleString('en-KE')} by ${window.currentUserName}`, 14, 40);
+
+        // Table Data
+        const tableColumn = ["Date", "Time", "Receipt", "Items Sold", "Revenue", "Cost", "Profit"];
+        const tableRows = currentReportData.map(d => [
+            d.Date, 
+            d.Time, 
+            d.Receipt, 
+            d.Items, 
+            `KSh ${d.Revenue.toLocaleString()}`, 
+            `KSh ${d.Cost.toLocaleString()}`, 
+            `KSh ${d.Profit.toLocaleString()}`
+        ]);
+
+        // Generate Table
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 45,
+            styles: { fontSize: 8, cellPadding: 2 },
+            columnStyles: {
+                3: { cellWidth: 60 } // Force the Items column to be wide in PDF
+            },
+            headStyles: { fillColor: [209, 178, 124], textColor: [17, 17, 17] }, // Gold header
+        });
+
+        // Add Totals at the bottom
+        let finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Grand Total Revenue: KSh ${grandTotals.revenue.toLocaleString()}`, 14, finalY);
+        doc.text(`Grand Total Profit: KSh ${grandTotals.profit.toLocaleString()}`, 14, finalY + 7);
+        doc.text(`Total Items Sold: ${grandTotals.items}`, 14, finalY + 14);
+
+        doc.save(getFilename('pdf'));
     }
   </script>
 </body>
-        </html>
+                                                                         </html>
