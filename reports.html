@@ -7,6 +7,47 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="style.css">
+  
+  <style>
+    /* Download button style */
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: transparent;
+      border: 1px solid var(--gold);
+      color: var(--gold);
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: "Lato", sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-download:hover:not(:disabled) {
+      background: rgba(209, 178, 124, 0.1);
+      transform: translateY(-1px);
+    }
+    .btn-download:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .btn-download:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .filter-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    @media (max-width: 600px) {
+      .filter-bar { flex-direction: column; align-items: stretch; }
+      .filter-controls { flex-direction: column; }
+      .filter-controls > * { width: 100%; }
+      .btn-download { justify-content: center; }
+    }
+  </style>
 </head>
 <body>
 
@@ -37,10 +78,21 @@
         <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
         Reports
       </a>
-      <!-- Owner only links -->
+      <a href="customers.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        Customers
+      </a>
+      <a href="suppliers.html" class="nav-item">
+        <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+        Suppliers
+      </a>
       <a href="staff.html" class="nav-item owner-only" style="display:none;">
         <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
         Staff
+      </a>
+      <a href="settings.html" class="nav-item owner-only" style="display:none;">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        Settings
       </a>
     </nav>
     <div class="sidebar-footer">
@@ -55,21 +107,23 @@
       <h1>Financial Reports</h1>
     </header>
 
-    <!-- Content Container -->
     <div id="reports-container">
-      <!-- Security guard will show/hide this based on role -->
       
       <div class="filter-bar">
         <h2 style="font-family: 'Cinzel', serif;">Sales Performance</h2>
-        <select id="date-filter" class="date-filter">
-          <option value="today" selected>Today's Sales</option>
-          <option value="7days">Last 7 Days</option>
-          <option value="30days">This Month</option>
-          <option value="all">All Time</option>
-        </select>
+        <div class="filter-controls">
+          <select id="date-filter" class="date-filter">
+            <option value="today" selected>Today's Sales</option>
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">This Month</option>
+            <option value="all">All Time</option>
+          </select>
+          <button id="download-btn" class="btn-download" onclick="downloadReport()">
+            ⬇ Download Report
+          </button>
+        </div>
       </div>
 
-      <!-- Metrics Summary -->
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-title">Total Revenue</div>
@@ -93,7 +147,6 @@
         </div>
       </div>
 
-      <!-- Sales Table -->
       <div class="table-responsive">
         <table class="data-table">
           <thead>
@@ -114,39 +167,33 @@
     </div>
   </main>
 
-  <!-- LOAD SHARED APP.JS -->
   <script src="app.js"></script>
   
-  <!-- PAGE SPECIFIC LOGIC -->
   <script>
     let allSales = [];
+    let currentFilteredSales = []; // Stored so download matches exactly what's on screen
 
-    window.addEventListener('load', async () => {
-        // 1. Role-Based Security Check
-        // We wait for app.js to initialize the user role
-        setTimeout(async () => {
-            if (window.currentUserRole !== 'owner' && window.currentUserRole !== 'manager') {
-                document.getElementById('reports-container').innerHTML = `
-                  <div class="unauthorized-panel">
-                    <h2>Access Denied</h2>
-                    <p>Only Owners and Managers are allowed to view financial reports.</p>
-                  </div>
-                `;
-                return;
-            }
+    // Wait for auth check
+    window.addEventListener('appReady', async () => {
+        // Security check
+        if (window.currentUserRole !== 'owner' && window.currentUserRole !== 'manager') {
+            document.getElementById('reports-container').innerHTML = `
+              <div class="unauthorized-panel">
+                <h2>Access Denied</h2>
+                <p>Only Owners and Managers are allowed to view financial reports.</p>
+              </div>
+            `;
+            return;
+        }
 
-            // 2. Fetch Data if authorized
-            await loadSalesData();
-            
-            // 3. Setup Filter Listener
-            document.getElementById('date-filter').addEventListener('change', () => {
-                renderReport();
-            });
-        }, 500); // Small delay to ensure app.js auth is complete
+        await loadSalesData();
+
+        document.getElementById('date-filter').addEventListener('change', () => {
+            renderReport();
+        });
     });
 
     async function loadSalesData() {
-        // Fetch all sales and join with the user who sold it (optional, but good for staff tracking)
         const { data, error } = await supabaseClient
             .from('sales')
             .select('*')
@@ -159,71 +206,66 @@
         }
 
         allSales = data;
-        renderReport(); // Render with default 'today' filter
+        renderReport();
+    }
+
+    // Filter sales based on the selected date range
+    function getFilteredSales(filter) {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        
+        return allSales.filter(sale => {
+            const saleDate = new Date(sale.created_at).getTime();
+            if (filter === 'today') return saleDate >= todayStart;
+            if (filter === '7days') return saleDate >= (todayStart - (7 * 24 * 60 * 60 * 1000));
+            if (filter === '30days') return saleDate >= (todayStart - (30 * 24 * 60 * 60 * 1000));
+            return true;
+        });
     }
 
     function renderReport() {
         const filter = document.getElementById('date-filter').value;
-        
-        // 1. Filter Data by Date
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        
-        const filteredSales = allSales.filter(sale => {
-            const saleDate = new Date(sale.created_at).getTime();
-            
-            if (filter === 'today') return saleDate >= todayStart;
-            if (filter === '7days') return saleDate >= (todayStart - (7 * 24 * 60 * 60 * 1000));
-            if (filter === '30days') return saleDate >= (todayStart - (30 * 24 * 60 * 60 * 1000));
-            return true; // 'all'
-        });
+        currentFilteredSales = getFilteredSales(filter);
 
-        // 2. Calculate Totals
         let totalRevenue = 0;
         let totalCost = 0;
         let totalItems = 0;
 
-        filteredSales.forEach(sale => {
+        currentFilteredSales.forEach(sale => {
             totalRevenue += Number(sale.total_amount);
-            
-            // Calculate cost and items sold from the JSONB array
             if (sale.items && Array.isArray(sale.items)) {
                 sale.items.forEach(item => {
-                    const cost = Number(item.cost_price) || 0;
-                    const qty = Number(item.quantity) || 1;
-                    totalCost += (cost * qty);
-                    totalItems += qty;
+                    totalCost += (Number(item.cost_price) || 0) * (Number(item.quantity) || 1);
+                    totalItems += Number(item.quantity) || 1;
                 });
             }
         });
 
         const totalProfit = totalRevenue - totalCost;
         const margin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0;
-
-        // 3. Update Metric Cards
         const formatKsh = (val) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(val);
         
         document.getElementById('metric-revenue').textContent = formatKsh(totalRevenue);
         document.getElementById('metric-cost').textContent = formatKsh(totalCost);
         document.getElementById('metric-profit').textContent = formatKsh(totalProfit);
         document.getElementById('metric-items').textContent = totalItems;
-        document.getElementById('metric-transactions').textContent = `${filteredSales.length} Transactions`;
+        document.getElementById('metric-transactions').textContent = `${currentFilteredSales.length} Transactions`;
         document.getElementById('metric-margin').textContent = `${margin}% margin`;
-
-        // Change profit color based on positive/negative
         document.getElementById('metric-profit').style.color = totalProfit >= 0 ? 'var(--success)' : 'var(--error)';
 
-        // 4. Render Table
+        // Render Table
         const tbody = document.getElementById('sales-table-body');
         tbody.innerHTML = '';
 
-        if (filteredSales.length === 0) {
+        if (currentFilteredSales.length === 0) {
             tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--muted);">No sales found for this period.</td></tr>`;
+            document.getElementById('download-btn').disabled = true;
             return;
         }
 
-        filteredSales.forEach(sale => {
-            // Calculate profit for this specific sale
+        document.getElementById('download-btn').disabled = false;
+
+        currentFilteredSales.forEach(sale => {
             let saleCost = 0;
             let itemsSummary = [];
             
@@ -237,7 +279,6 @@
             const saleProfit = sale.total_amount - saleCost;
             const profitClass = saleProfit >= 0 ? 'text-success' : 'text-error';
             
-            // Format date
             const dateObj = new Date(sale.created_at);
             const dateStr = dateObj.toLocaleDateString('en-KE', { month: 'short', day: 'numeric' });
             const timeStr = dateObj.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' });
@@ -253,6 +294,99 @@
             `;
         });
     }
+
+    // --- DOWNLOAD REPORT AS CSV ---
+    function downloadReport() {
+        if (currentFilteredSales.length === 0) {
+            alert("There are no sales to download for this period.");
+            return;
+        }
+
+        const filterSelect = document.getElementById('date-filter');
+        const filterLabel = filterSelect.options[filterSelect.selectedIndex].text;
+        const filterValue = filterSelect.value;
+
+        // Build CSV rows
+        const rows = [];
+        
+        // Report header
+        rows.push(['SoulHub - Sales Report']);
+        rows.push([`Period: ${filterLabel}`]);
+        rows.push([`Generated: ${new Date().toLocaleString('en-KE')}`]);
+        rows.push([`Generated by: ${window.currentUserName || 'Staff'} (${window.currentUserRole})`]);
+        rows.push([]); // blank row
+        
+        // Column headers
+        rows.push(['Date', 'Time', 'Receipt #', 'Items Sold', 'Revenue (KSh)', 'Cost (KSh)', 'Profit (KSh)']);
+        
+        // Data rows
+        let grandRevenue = 0;
+        let grandCost = 0;
+        let grandItems = 0;
+        
+        currentFilteredSales.forEach(sale => {
+            let saleCost = 0;
+            let itemsSummary = [];
+            
+            if (sale.items && Array.isArray(sale.items)) {
+                sale.items.forEach(item => {
+                    saleCost += ((Number(item.cost_price) || 0) * (Number(item.quantity) || 1));
+                    itemsSummary.push(`${item.quantity}x ${item.name} (Sz ${item.size})`);
+                    grandItems += Number(item.quantity) || 1;
+                });
+            }
+            
+            const saleRevenue = Number(sale.total_amount) || 0;
+            const saleProfit = saleRevenue - saleCost;
+            grandRevenue += saleRevenue;
+            grandCost += saleCost;
+            
+            const dateObj = new Date(sale.created_at);
+            rows.push([
+                dateObj.toLocaleDateString('en-KE'),
+                dateObj.toLocaleTimeString('en-KE'),
+                sale.receipt_number,
+                itemsSummary.join(' | '),
+                saleRevenue.toFixed(2),
+                saleCost.toFixed(2),
+                saleProfit.toFixed(2)
+            ]);
+        });
+        
+        // Summary section
+        rows.push([]);
+        rows.push(['', '', '', 'GRAND TOTAL', grandRevenue.toFixed(2), grandCost.toFixed(2), (grandRevenue - grandCost).toFixed(2)]);
+        rows.push(['', '', '', 'Total Items Sold', grandItems]);
+        rows.push(['', '', '', 'Transactions', currentFilteredSales.length]);
+
+        // Escape and convert to CSV string
+        const csv = rows.map(row => 
+            row.map(cell => {
+                const str = String(cell ?? '');
+                // Wrap in quotes if it contains comma, quote, or newline
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return `"${str.replace(/"/g, '""')}"`;
+                }
+                return str;
+            }).join(',')
+        ).join('\r\n');
+
+        // Create Blob with BOM for Excel UTF-8 support
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        // Format filename: soulhub-report-today-2025-10-24.csv
+        const today = new Date().toISOString().split('T')[0];
+        const filename = `soulhub-report-${filterValue}-${today}.csv`;
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
   </script>
 </body>
-</html>
+        </html>
